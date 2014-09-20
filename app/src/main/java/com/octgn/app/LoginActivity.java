@@ -4,72 +4,31 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
 import android.app.Activity;
-import android.app.LoaderManager.LoaderCallbacks;
-import android.content.ContentResolver;
-import android.content.CursorLoader;
 import android.content.Intent;
-import android.content.Loader;
-import android.database.Cursor;
-import android.net.Uri;
 import android.os.AsyncTask;
 
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.ContactsContract;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.inputmethod.EditorInfo;
-import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.github.kevinsawicki.http.HttpRequest;
-
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.StatusLine;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.HttpParams;
-import org.apache.http.util.EntityUtils;
-import org.w3c.dom.Document;
-
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
+import com.octgn.api.ApiClient;
+import com.octgn.api.IsSubbedResult;
+import com.octgn.api.LoginResult;
 
 /**
  * A login screen that offers login via username/password.
  */
 public class LoginActivity extends Activity {
-
-    /**
-     * A dummy authentication store containing known user names and passwords.
-     * TODO: remove after connecting to a real authentication system.
-     */
-    private static final String[] DUMMY_CREDENTIALS = new String[]{
-            "foo@example.com:hello", "bar@example.com:world"
-    };
-    /**
-     * Keep track of the login task to ensure we can cancel it if requested.
-     */
     private UserLoginTask mAuthTask = null;
 
     // UI references.
@@ -133,18 +92,18 @@ public class LoginActivity extends Activity {
 
 
         // Check for a valid password, if the user entered one.
-        if (!TextUtils.isEmpty(password) && !isPasswordValid(password)) {
-            mPasswordView.setError(getString(R.string.error_invalid_password));
-            focusView = mPasswordView;
-            cancel = true;
-        }
+        //if (!TextUtils.isEmpty(password) && !isPasswordValid(password)) {
+        //    mPasswordView.setError(getString(R.string.error_invalid_password));
+        //    focusView = mPasswordView;
+        //    cancel = true;
+        //}
 
         // Check for a valid username address.
-        if (TextUtils.isEmpty(username)) {
-            mUsernameView.setError(getString(R.string.error_field_required));
-            focusView = mUsernameView;
-            cancel = true;
-        }
+        //if (TextUtils.isEmpty(username)) {
+        //    mUsernameView.setError(getString(R.string.error_field_required));
+        //    focusView = mUsernameView;
+        //    cancel = true;
+        //}
 
         if (cancel) {
             // There was an error; don't attempt login and focus the first
@@ -204,7 +163,7 @@ public class LoginActivity extends Activity {
      * Represents an asynchronous login/registration task used to authenticate
      * the user.
      */
-    public class UserLoginTask extends AsyncTask<Void, Void, Integer> {
+    public class UserLoginTask extends AsyncTask<Void, Void, LoginResult> {
 
         private final String mUsername;
         private final String mPassword;
@@ -215,101 +174,62 @@ public class LoginActivity extends Activity {
         }
 
         @Override
-        protected Integer doInBackground(Void... params) {
-            try {
-                Log.d("", "Starting to do login request.");
-                HttpRequest resp = HttpRequest.get("https://www.octgn.net/api/user/login", true, "username", mUsername, "password", mPassword)
-                        .accept("application/text"); //Sets request header
-                Log.d("", "Request String: " + resp.toString());
-                Log.d("", "Content Type: " + resp.contentType());
-                Log.d("", "Content Encoding: " + resp.contentEncoding());
+        protected LoginResult doInBackground(Void... params) {
+            ApiClient client = new ApiClient();
+            LoginResult lr = client.Login(mUsername, mPassword);
+            if(lr != LoginResult.Ok)
+                return lr;
 
-                int code = resp.code();
-                if (code == HttpStatus.SC_OK) {
-                    Log.d("", "200 dawg");
-                    String content = resp.body();
-                    Log.d("", "Content: " + content);
-                    if (content.matches("\\d+") == false)
-                        return -1;
-
-                    int contentNum = Integer.parseInt(content);
-
-                    if(contentNum == 1)
-                    {
-                        // this means the credentials were acceptable
-                        // check for an active subscription
-                        resp = HttpRequest.get("https://www.octgn.net/api/user/issubbed", true, "subusername", mUsername, "subpassword", mPassword)
-                                .accept("application/text"); //Sets request header
-                        code = resp.code();
-                        if (code == HttpStatus.SC_OK) {
-                            Log.d("", "200 dawg");
-                            content = resp.body();
-                            Log.d("", "Content: " + content);
-                            if (content.matches("\\d+") == false)
-                                return -1;
-
-                            Integer contentSubNum = Integer.parseInt(content);
-                            if(contentSubNum == 1)
-                                return 1;
-                            else if(contentSubNum == 3 || contentSubNum == 4)
-                                return 5;
-                            else return -1;
-                        }
-                        else {
-                            Log.d("", "Not a 200 response, it was a " + code);
-                            return -1;
-                        }
-                    }
-
-                    return contentNum;
-                } else {
-                    Log.d("", "Not a 200 response, it was a " + code);
-                }
-            }
-            catch(Exception e)
-            {
-                e.printStackTrace();
-            }
-            Log.d("", "Finished and it was a FAIL");
-            return -1;
+            IsSubbedResult sr = client.IsSubscriber(mUsername, mPassword);
+            if(sr == IsSubbedResult.AuthenticationError
+                || sr == IsSubbedResult.UnknownError)
+                return LoginResult.UnknownError;
+            if(sr == IsSubbedResult.NoSubscription
+                    || sr == IsSubbedResult.SubscriptionExpired)
+                return LoginResult.NotSubscribed;
+            return LoginResult.Ok;
         }
 
         @Override
-        protected void onPostExecute(final Integer contentNum) {
+        protected void onPostExecute(final LoginResult contentNum) {
             mAuthTask = null;
             showProgress(false);
             Boolean success = false;
             String eMessage = "";
             switch(contentNum)
             {
-                case 1: {
+                case Ok: {
                     // All is well
-                    Log.d("", "Login success");
+                    Log.i("", "Login success");
                     Toast toast = Toast.makeText(getApplicationContext(), "Login Success", Toast.LENGTH_LONG);
                     toast.show();
                     finish();
+
                     Intent in = new Intent(getApplicationContext(),MainActivity.class);
+                    //Bundle buns = new Bundle();
+                    in.putExtra("username",mUsername);
+                    in.putExtra("password",mPassword);
                     startActivity(in);
                     break;
                 }
-                case 2: {
+                case EmailUnverified: {
                     // Email unverified
                     mUsernameView.setError("Your Email is Unverified. Please verify your email first.");
                     mUsernameView.requestFocus();
                     break;
                 }
-                case 3:{
+                case UnknownUsername:{
                     mUsernameView.setError(getString(R.string.error_invalid_username));
                     mUsernameView.requestFocus();
                     break;
                 }
-                case 4:{
+                case PasswordWrong:{
                     // Password Wrong
                     mPasswordView.setError(getString(R.string. error_incorrect_password));
                     mPasswordView.requestFocus();
                     break;
                 }
-                case 5:{
+                case NotSubscribed:{
                     // Not Subscribed(need to tie into this somehow
                     mUsernameView.setError("You are not subscribed. You must be subscribed to use this app.");
                     mUsernameView.requestFocus();
