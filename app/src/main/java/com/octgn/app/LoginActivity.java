@@ -16,6 +16,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -25,6 +26,9 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.github.kevinsawicki.http.HttpRequest;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -35,18 +39,25 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.HttpParams;
+import org.apache.http.util.EntityUtils;
+import org.w3c.dom.Document;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
 
 /**
- * A login screen that offers login via email/password.
-
+ * A login screen that offers login via username/password.
  */
-public class LoginActivity extends Activity implements LoaderCallbacks<Cursor>{
+public class LoginActivity extends Activity {
 
     /**
      * A dummy authentication store containing known user names and passwords.
@@ -61,7 +72,7 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor>{
     private UserLoginTask mAuthTask = null;
 
     // UI references.
-    private AutoCompleteTextView mEmailView;
+    private AutoCompleteTextView mUsernameView;
     private EditText mPasswordView;
     private View mProgressView;
     private View mLoginFormView;
@@ -72,8 +83,7 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor>{
         setContentView(R.layout.activity_login);
 
         // Set up the login form.
-        mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
-        populateAutoComplete();
+        mUsernameView = (AutoCompleteTextView) findViewById(R.id.username);
 
         mPasswordView = (EditText) findViewById(R.id.password);
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
@@ -87,8 +97,8 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor>{
             }
         });
 
-        Button mEmailSignInButton = (Button) findViewById(R.id.email_sign_in_button);
-        mEmailSignInButton.setOnClickListener(new OnClickListener() {
+        Button mUsernameSignInButton = (Button) findViewById(R.id.username_sign_in_button);
+        mUsernameSignInButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
                 attemptLogin();
@@ -99,14 +109,9 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor>{
         mProgressView = findViewById(R.id.login_progress);
     }
 
-    private void populateAutoComplete() {
-        getLoaderManager().initLoader(0, null, this);
-    }
-
-
     /**
      * Attempts to sign in or register the account specified by the login form.
-     * If there are form errors (invalid email, missing fields, etc.), the
+     * If there are form errors (invalid username, missing fields, etc.), the
      * errors are presented and no actual login attempt is made.
      */
     public void attemptLogin() {
@@ -115,11 +120,11 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor>{
         }
 
         // Reset errors.
-        mEmailView.setError(null);
+        mUsernameView.setError(null);
         mPasswordView.setError(null);
 
         // Store values at the time of the login attempt.
-        String email = mEmailView.getText().toString();
+        String username = mUsernameView.getText().toString();
         String password = mPasswordView.getText().toString();
 
         boolean cancel = false;
@@ -133,14 +138,10 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor>{
             cancel = true;
         }
 
-        // Check for a valid email address.
-        if (TextUtils.isEmpty(email)) {
-            mEmailView.setError(getString(R.string.error_field_required));
-            focusView = mEmailView;
-            cancel = true;
-        } else if (!isEmailValid(email)) {
-            mEmailView.setError(getString(R.string.error_invalid_email));
-            focusView = mEmailView;
+        // Check for a valid username address.
+        if (TextUtils.isEmpty(username)) {
+            mUsernameView.setError(getString(R.string.error_field_required));
+            focusView = mUsernameView;
             cancel = true;
         }
 
@@ -152,13 +153,9 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor>{
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            mAuthTask = new UserLoginTask(email, password);
+            mAuthTask = new UserLoginTask(username, password);
             mAuthTask.execute((Void) null);
         }
-    }
-    private boolean isEmailValid(String email) {
-        //TODO: Replace this with your own logic
-        return email.contains("@");
     }
 
     private boolean isPasswordValid(String password) {
@@ -202,133 +199,124 @@ public class LoginActivity extends Activity implements LoaderCallbacks<Cursor>{
         }
     }
 
-    @Override
-    public Loader<Cursor> onCreateLoader(int i, Bundle bundle) {
-        return new CursorLoader(this,
-                // Retrieve data rows for the device user's 'profile' contact.
-                Uri.withAppendedPath(ContactsContract.Profile.CONTENT_URI,
-                        ContactsContract.Contacts.Data.CONTENT_DIRECTORY), ProfileQuery.PROJECTION,
-
-                // Select only email addresses.
-                ContactsContract.Contacts.Data.MIMETYPE +
-                        " = ?", new String[]{ContactsContract.CommonDataKinds.Email
-                                                                     .CONTENT_ITEM_TYPE},
-
-                // Show primary email addresses first. Note that there won't be
-                // a primary email address if the user hasn't specified one.
-                ContactsContract.Contacts.Data.IS_PRIMARY + " DESC");
-    }
-
-    @Override
-    public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
-        List<String> emails = new ArrayList<String>();
-        cursor.moveToFirst();
-        while (!cursor.isAfterLast()) {
-            emails.add(cursor.getString(ProfileQuery.ADDRESS));
-            cursor.moveToNext();
-        }
-
-        addEmailsToAutoComplete(emails);
-    }
-
-    @Override
-    public void onLoaderReset(Loader<Cursor> cursorLoader) {
-
-    }
-
-    private interface ProfileQuery {
-        String[] PROJECTION = {
-                ContactsContract.CommonDataKinds.Email.ADDRESS,
-                ContactsContract.CommonDataKinds.Email.IS_PRIMARY,
-        };
-
-        int ADDRESS = 0;
-        int IS_PRIMARY = 1;
-    }
-
-
-    private void addEmailsToAutoComplete(List<String> emailAddressCollection) {
-        //Create adapter to tell the AutoCompleteTextView what to show in its dropdown list.
-        ArrayAdapter<String> adapter =
-                new ArrayAdapter<String>(LoginActivity.this,
-                        android.R.layout.simple_dropdown_item_1line, emailAddressCollection);
-
-        mEmailView.setAdapter(adapter);
-    }
-
     /**
      * Represents an asynchronous login/registration task used to authenticate
      * the user.
      */
-    public class UserLoginTask extends AsyncTask<Void, Void, Boolean> {
+    public class UserLoginTask extends AsyncTask<Void, Void, Integer> {
 
-        private final String mEmail;
+        private final String mUsername;
         private final String mPassword;
 
-        UserLoginTask(String email, String password) {
-            mEmail = email;
+        UserLoginTask(String username, String password) {
+            mUsername = username;
             mPassword = password;
         }
 
         @Override
-        protected Boolean doInBackground(Void... params) {
-            HttpGet request = new HttpGet("https://www.octgn.net/api/user/login");
-            request.getParams().setParameter("username",mEmail);
-            request.getParams().setParameter("password",mPassword);
-
-            HttpClient client = new DefaultHttpClient();
-            try
-            {
-                HttpResponse response = client.execute(request);
-                StatusLine statusLine = response.getStatusLine();
-                if (statusLine.getStatusCode() == HttpStatus.SC_OK) {
-                    HttpEntity entity = response.getEntity();
-                    ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    entity.writeTo(out);
-                    out.close();
-                    String responseStr = out.toString();
-                    // do something with response
-                } else {
-                    // handle bad response
-                }
-            } catch (ClientProtocolException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-
-            // TODO: attempt authentication against a network service.
-
+        protected Integer doInBackground(Void... params) {
             try {
-                // Simulate network access.
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                return false;
-            }
+                Log.d("", "Starting to do login request.");
+                HttpRequest resp = HttpRequest.get("https://www.octgn.net/api/user/login", true, "username", mUsername, "password", mPassword)
+                        .accept("application/text"); //Sets request header
+                Log.d("", "Request String: " + resp.toString());
+                Log.d("", "Content Type: " + resp.contentType());
+                Log.d("", "Content Encoding: " + resp.contentEncoding());
 
-            for (String credential : DUMMY_CREDENTIALS) {
-                String[] pieces = credential.split(":");
-                if (pieces[0].equals(mEmail)) {
-                    // Account exists, return true if the password matches.
-                    return pieces[1].equals(mPassword);
+                int code = resp.code();
+                if (code == HttpStatus.SC_OK) {
+                    Log.d("", "200 dawg");
+                    String content = resp.body();
+                    Log.d("", "Content: " + content);
+                    if (content.matches("\\d+") == false)
+                        return -1;
+
+                    int contentNum = Integer.parseInt(content);
+
+                    if(contentNum == 1)
+                    {
+                        // this means the credentials were acceptable
+                        // check for an active subscription
+                        resp = HttpRequest.get("https://www.octgn.net/api/user/issubbed", true, "subusername", mUsername, "subpassword", mPassword)
+                                .accept("application/text"); //Sets request header
+                        code = resp.code();
+                        if (code == HttpStatus.SC_OK) {
+                            Log.d("", "200 dawg");
+                            content = resp.body();
+                            Log.d("", "Content: " + content);
+                            if (content.matches("\\d+") == false)
+                                return -1;
+
+                            Integer contentSubNum = Integer.parseInt(content);
+                            if(contentSubNum == 1)
+                                return 1;
+                            else if(contentSubNum == 3 || contentSubNum == 4)
+                                return 5;
+                            else return -1;
+                        }
+                        else {
+                            Log.d("", "Not a 200 response, it was a " + code);
+                            return -1;
+                        }
+                    }
+
+                    return contentNum;
+                } else {
+                    Log.d("", "Not a 200 response, it was a " + code);
                 }
             }
-
-            // TODO: register the new account here.
-            return true;
+            catch(Exception e)
+            {
+                e.printStackTrace();
+            }
+            Log.d("", "Finished and it was a FAIL");
+            return -1;
         }
 
         @Override
-        protected void onPostExecute(final Boolean success) {
+        protected void onPostExecute(final Integer contentNum) {
             mAuthTask = null;
             showProgress(false);
-
-            if (success) {
-                finish();
-            } else {
-                mPasswordView.setError(getString(R.string.error_incorrect_password));
-                mPasswordView.requestFocus();
+            Boolean success = false;
+            String eMessage = "";
+            switch(contentNum)
+            {
+                case 1: {
+                    // All is well
+                    Log.d("", "Login success");
+                    Toast toast = Toast.makeText(getApplicationContext(), "Login Success", Toast.LENGTH_LONG);
+                    toast.show();
+                    //finish();
+                    break;
+                }
+                case 2: {
+                    // Email unverified
+                    mUsernameView.setError("Your Email is Unverified. Please verify your email first.");
+                    mUsernameView.requestFocus();
+                    break;
+                }
+                case 3:{
+                    mUsernameView.setError(getString(R.string.error_invalid_username));
+                    mUsernameView.requestFocus();
+                    break;
+                }
+                case 4:{
+                    // Password Wrong
+                    mPasswordView.setError(getString(R.string. error_incorrect_password));
+                    mPasswordView.requestFocus();
+                    break;
+                }
+                case 5:{
+                    // Not Subscribed(need to tie into this somehow
+                    mUsernameView.setError("You are not subscribed. You must be subscribed to use this app.");
+                    mUsernameView.requestFocus();
+                    break;
+                }
+                default:{
+                    // Generic Error Here about how all shit's broke
+                    mUsernameView.setError("There was an error. Please try again later.");
+                    mUsernameView.requestFocus();
+                }
             }
         }
 

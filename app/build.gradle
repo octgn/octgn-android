@@ -23,4 +23,5 @@ dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
     compile 'com.android.support:appcompat-v7:20.+'
     compile 'com.google.android.gms:play-services:5.+'
+    compile group:'com.github.kevinsawicki', name:'http-request', version:'5.4.1'
 }
