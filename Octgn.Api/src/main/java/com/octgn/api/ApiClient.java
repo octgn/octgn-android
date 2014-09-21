@@ -80,6 +80,11 @@ public class ApiClient {
             det.Name = "My Stupid Game " + i;
             ret.add(det);
         }
+        try {
+            Thread.currentThread().sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         return ret;
     }
 }

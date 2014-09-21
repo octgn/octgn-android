@@ -1,27 +1,29 @@
 package com.octgn.app;
 
-import android.annotation.TargetApi;
-import android.app.Activity;
-
 import android.app.ActionBar;
+import android.app.Activity;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.content.DialogInterface;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
+import android.support.v4.widget.DrawerLayout;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.support.v4.widget.DrawerLayout;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
+import android.view.animation.RotateAnimation;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -32,14 +34,18 @@ import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
 import com.octgn.api.ApiClient;
 import com.octgn.api.GameDetails;
 
-import java.io.InputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 
-public class MainActivity extends Activity implements NavigationDrawerFragment.NavigationDrawerCallbacks {
+public class MainActivity extends Activity implements NavigationDrawerFragment.NavigationDrawerCallbacks, View.OnClickListener {
     private NavigationDrawerFragment mNavigationDrawerFragment;
+    private static final String GAME_FRAGMENT = "GAME_FRAGMENT";
+    public Menu actionBarMenu = null;
 
     private CharSequence mTitle;
 
@@ -82,12 +88,12 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
         Log.i("", "Navigating to id " + position);
 
         Fragment frag = null;
-        if(position == 0)
-        {
-            frag = GamesFragment.newInstance(position + 1, username, password);
-        }
-        else if(position == 1)
-        {
+        if (position == 0) {
+            if(GamesFragment.CurrentInstance == null)
+                frag = GamesFragment.newInstance(position + 1, username, password);
+            else
+                frag = GamesFragment.CurrentInstance;
+        } else if (position == 1) {
             frag = PlaceholderFragment.newInstance(position + 1, username, password);
         }
 
@@ -119,7 +125,6 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
         actionBar.setTitle(mTitle);
     }
 
-
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         if (!mNavigationDrawerFragment.isDrawerOpen()) {
@@ -128,8 +133,12 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
             // decide what to show in the action bar.
             getMenuInflater().inflate(R.menu.main, menu);
             restoreActionBar();
+            actionBarMenu = menu;
+            MenuItem refreshButton = actionBarMenu.findItem(R.id.action_refresh);
+            refreshButton.getActionView().setOnClickListener(this);
             return true;
         }
+
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -145,8 +154,17 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
         return super.onOptionsItemSelected(item);
     }
 
+    @Override
+    public void onClick(View v) {
+        if(GamesFragment.CurrentInstance == null)
+            return;
+        GamesFragment.CurrentInstance.refresh();
+    }
+
     public static class GamesFragment extends Fragment{
         private static final String ARG_SECTION_NUMBER = "section_number";
+        public static GamesFragment CurrentInstance;
+
         public static GamesFragment newInstance(int sectionNumber, String username, String password) {
             GamesFragment fragment = new GamesFragment();
             Bundle args = new Bundle();
@@ -154,22 +172,18 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
             args.putString("username", username);
             args.putString("password", password);
             fragment.setArguments(args);
-            return fragment;
+            CurrentInstance = fragment;
+            return CurrentInstance;
         }
 
+        private List<GameDetails> mGames;
         private RefreshGamesTask mRefreshGamesTask;
 
         public GamesFragment() {
-
+            mGames = new ArrayList<GameDetails>();
         }
 
-        @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container,Bundle savedInstanceState) {
-            //TODO Needs to actually save the game list data so if the screen changes it can use that
-            //TODO Need a way to keep the user from spamming downloads over and over.
-            Log.i("", "GameFragement.onCreateView");
-            View rootView = inflater.inflate(R.layout.fragment_games, container, false);
-            Log.i("", "GameFragement.onCreateView Inflated view");
+        public void refresh() {
             String username = getArguments().getString("username");
             String password = getArguments().getString("password");
 
@@ -178,8 +192,14 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
 
             mRefreshGamesTask = new RefreshGamesTask(username, password);
             mRefreshGamesTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, (Void) null);
+        }
 
-            Log.i("", "GameFragement.onCreateView returning");
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+            View rootView = inflater.inflate(R.layout.fragment_games, container, false);
+            String username = getArguments().getString("username");
+            String password = getArguments().getString("password");
+
             return rootView;
         }
 
@@ -189,39 +209,57 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
             ((MainActivity) activity).onSectionAttached(getArguments().getInt(ARG_SECTION_NUMBER));
         }
 
-        @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
+        @Override public void onResume(){
+            displayGames();
+            super.onResume();
+        }
+
         public void showProgress(final boolean show) {
-            // On Honeycomb MR2 we have the ViewPropertyAnimator APIs, which allow
-            // for very easy animations. If available, use these APIs to fade-in
-            // the progress spinner.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2) {
-                int shortAnimTime = getResources().getInteger(android.R.integer.config_shortAnimTime);
+            MainActivity act = (MainActivity)getActivity();
+            if(act == null)
+                return;
+            MenuItem refreshButton = act.actionBarMenu.findItem(R.id.action_refresh);
+            if (show == true) {
+                refreshButton.getActionView().setEnabled(false);
 
-                //mLoginFormView.setVisibility(show ? View.GONE : View.VISIBLE);
-                //mLoginFormView.animate().setDuration(shortAnimTime).alpha(show ? 0 : 1).setListener(new AnimatorListenerAdapter() {
-                //    @Override
-                //    public void onAnimationEnd(Animator animation) {
-                //        mLoginFormView.setVisibility(show ? View.GONE : View.VISIBLE);
-                //    }
-                //});
+                //LayoutInflater inflater = (LayoutInflater) getActivity().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                //LinearLayout iv = (LinearLayout) inflater.inflate(R.layout.refresh_spinner, null);
 
-                //mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
-                //mProgressView.animate().setDuration(shortAnimTime).alpha(
-                //        show ? 1 : 0).setListener(new AnimatorListenerAdapter() {
-                //    @Override
-                //    public void onAnimationEnd(Animator animation) {
-                //        mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
-                //    }
-                //});
+                Animation rotation = AnimationUtils.loadAnimation(getActivity(), R.anim.rotate_refresh);
+                rotation.setRepeatCount(Animation.INFINITE);
+                refreshButton.getActionView().startAnimation(rotation);
+
+                //refreshButton.setActionView(iv);
             } else {
-                // The ViewPropertyAnimator APIs are not available, so simply show
-                // and hide the relevant UI components.
-                //mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
-                //mLoginFormView.setVisibility(show ? View.GONE : View.VISIBLE);
+                refreshButton.getActionView().setEnabled(true);
+                refreshButton.getActionView().clearAnimation();
+                //refreshButton.setActionView(null);
             }
         }
 
-        public class GameList extends ArrayAdapter<GameDetails>{
+        public void setGames(List<GameDetails> gamesList){
+            Toast t = Toast.makeText(getActivity().getApplicationContext(), "Refreshed Game List", Toast.LENGTH_SHORT);
+            t.show();
+
+            mGames = gamesList;
+            displayGames();
+        }
+
+        public void displayGames(){
+            final Activity mainActivity = getActivity();
+            GameList adapter = new GameList(mainActivity, R.layout.fragment_games, mGames.toArray(new GameDetails[mGames.size()]));
+            ListView list = (ListView) mainActivity.findViewById(R.id.list);
+            list.setAdapter(adapter);
+            list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> parent, View view,
+                                        int position, long id) {
+                    Toast.makeText(mainActivity, "You Clicked on game " + mGames.get(+position), Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
+        public class GameList extends ArrayAdapter<GameDetails> {
 
             private GameDetails[] gameDetails;
 
@@ -243,7 +281,7 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
                 txtUser.setText(cur.Hoster);
                 DateFormat df = new SimpleDateFormat("h:mm a");
                 txtDate.setText(df.format(cur.DateCreated));
-                ImageLoader.getInstance().displayImage(gameDetails[position].IconUrl,imageView);
+                ImageLoader.getInstance().displayImage(gameDetails[position].IconUrl, imageView);
                 return rowView;
             }
         }
@@ -262,37 +300,30 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
             protected List<GameDetails> doInBackground(Void... params) {
                 Log.i("", "RefreshGamesTask.execute");
                 ApiClient client = new ApiClient();
-                List<GameDetails> ret = client.GetGames(mUsername,mPassword);
+                List<GameDetails> ret = client.GetGames(mUsername, mPassword);
+
+                Collections.sort(ret, new Comparator<GameDetails>() {
+                    public int compare(GameDetails emp1, GameDetails emp2) {
+                        return emp1.GameName.compareToIgnoreCase(emp2.GameName);
+                    }
+                });
+
                 return ret;
             }
 
             @Override
             protected void onPostExecute(final List<GameDetails> result) {
                 Log.i("", "RefreshGamesTask.onPostExecute");
-                if(!isAdded())
+                if (!isAdded())
                     return;
                 mRefreshGamesTask = null;
                 showProgress(false);
-                Toast t = Toast.makeText(getActivity().getApplicationContext(),"Refreshed Game List", Toast.LENGTH_SHORT);
-                t.show();
-
-                //TODO order games by game name
-                final Activity mainActivity = getActivity();
-                GameList adapter = new GameList(mainActivity, R.layout.fragment_games, result.toArray(new GameDetails[result.size()]));
-                ListView list=(ListView)mainActivity.findViewById(R.id.list);
-                list.setAdapter(adapter);
-                list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                    @Override
-                    public void onItemClick(AdapterView<?> parent, View view,
-                                            int position, long id) {
-                        Toast.makeText(mainActivity, "You Clicked on game " + result.get(+ position), Toast.LENGTH_SHORT).show();
-                    }
-                });
+                setGames(result);
             }
 
             @Override
             protected void onCancelled() {
-                if(!isAdded())
+                if (!isAdded())
                     return;
                 mRefreshGamesTask = null;
                 showProgress(false);
@@ -307,7 +338,7 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
             PlaceholderFragment fragment = new PlaceholderFragment();
             Bundle args = new Bundle();
             args.putInt(ARG_SECTION_NUMBER, sectionNumber);
-            args.putString("username",username);
+            args.putString("username", username);
             args.putString("password", password);
             fragment.setArguments(args);
             return fragment;
@@ -318,7 +349,7 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
 
         @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                Bundle savedInstanceState) {
+                                 Bundle savedInstanceState) {
             View rootView = inflater.inflate(R.layout.fragment_main, container, false);
             return rootView;
         }

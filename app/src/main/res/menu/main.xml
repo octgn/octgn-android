@@ -1,9 +1,13 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="com.octgn.app.MainActivity" >
-    <item android:id="@+id/action_example"
+    tools:context="com.octgn.app.MainActivity"
+    android:id="@+id/action_bar">
+    <item android:id="@+id/action_refresh"
         android:title="@string/action_example"
-        android:showAsAction="withText|ifRoom" />
+        android:icon="@drawable/ic_menu_refresh"
+        style="@android:style/Widget.ActionButton"
+        android:actionLayout="@layout/refresh_spinner"
+        android:showAsAction="always" />
     <item android:id="@+id/action_settings"
         android:title="@string/action_settings"
         android:orderInCategory="100"

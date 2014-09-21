@@ -205,6 +205,8 @@ public class LoginActivity extends Activity {
                     toast.show();
                     finish();
 
+                    //TODO Option to save credentials
+                    //TODO If we leave the program, should be able to return to where we were prior
                     Intent in = new Intent(getApplicationContext(),MainActivity.class);
                     //Bundle buns = new Bundle();
                     in.putExtra("username",mUsername);
