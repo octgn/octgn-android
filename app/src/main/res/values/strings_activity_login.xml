@@ -7,7 +7,11 @@
     <string name="action_sign_in_short">Sign in</string>
 
     <string name="error_invalid_username">This username is invalid</string>
-    <string name="error_invalid_password">This password is too short</string>
-    <string name="error_incorrect_password">This password is incorrect</string>
+    <string name="error_invalid_password">This password is invalid</string>
+    <string name="error_not_subscribed">You are not a subscriber. You must be a subscriber to use this app</string>
+    <string name="error_email_not_verified">Your Email is Unverified. Please verify your email first</string>
     <string name="error_field_required">This field is required</string>
+    <string name="error_try_again">There was an error. Please try again later.</string>
+
+    <string name="toast_login_success">Login Success</string>
 </resources>

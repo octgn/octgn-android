@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 
 import android.os.Build;
@@ -17,6 +18,7 @@ import android.view.View.OnClickListener;
 import android.view.inputmethod.EditorInfo;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -30,10 +32,15 @@ import com.octgn.api.LoginResult;
  */
 public class LoginActivity extends Activity {
     private UserLoginTask mAuthTask = null;
+    private static final String PK_CREDENTIALS_PREFS = "PK_CREDENTIALS_PREFS";
+    private static final String PK_SAVE_CREDENTIALS = "PK_SAVE_CREDENTIALS";
+    private static final String PK_USERNAME = "PK_USERNAME";
+    private static final String PK_PASSWORD = "PK_PASSWORD";
 
     // UI references.
     private AutoCompleteTextView mUsernameView;
     private EditText mPasswordView;
+    private CheckBox mSaveCredentials;
     private View mProgressView;
     private View mLoginFormView;
 
@@ -42,8 +49,11 @@ public class LoginActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
+        //TODO replace the app icon with the proper sizings
+        //TODO reaplce the login screen image with the proper sizings
         // Set up the login form.
         mUsernameView = (AutoCompleteTextView) findViewById(R.id.username);
+        mSaveCredentials = (CheckBox)findViewById(R.id.login_save_credentials);
 
         mPasswordView = (EditText) findViewById(R.id.password);
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
@@ -67,13 +77,18 @@ public class LoginActivity extends Activity {
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
+
+        // Restore saved shitz
+        SharedPreferences settings = getSharedPreferences(PK_CREDENTIALS_PREFS, 0);
+        boolean saveCreds = settings.getBoolean(PK_SAVE_CREDENTIALS, false);
+        String username = settings.getString(PK_USERNAME, "");
+        String password = settings.getString(PK_PASSWORD, "");
+
+        mUsernameView.setText(username);
+        mPasswordView.setText(password);
+        mSaveCredentials.setChecked(saveCreds);
     }
 
-    /**
-     * Attempts to sign in or register the account specified by the login form.
-     * If there are form errors (invalid username, missing fields, etc.), the
-     * errors are presented and no actual login attempt is made.
-     */
     public void attemptLogin() {
         if (mAuthTask != null) {
             return;
@@ -90,20 +105,19 @@ public class LoginActivity extends Activity {
         boolean cancel = false;
         View focusView = null;
 
-
         // Check for a valid password, if the user entered one.
-        //if (!TextUtils.isEmpty(password) && !isPasswordValid(password)) {
-        //    mPasswordView.setError(getString(R.string.error_invalid_password));
-        //    focusView = mPasswordView;
-        //    cancel = true;
-        //}
+        if (TextUtils.isEmpty(password)) {
+            mPasswordView.setError(getString(R.string.error_invalid_password));
+            focusView = mPasswordView;
+            cancel = true;
+        }
 
         // Check for a valid username address.
-        //if (TextUtils.isEmpty(username)) {
-        //    mUsernameView.setError(getString(R.string.error_field_required));
-        //    focusView = mUsernameView;
-        //    cancel = true;
-        //}
+        if (TextUtils.isEmpty(username)) {
+            mUsernameView.setError(getString(R.string.error_field_required));
+            focusView = mUsernameView;
+            cancel = true;
+        }
 
         if (cancel) {
             // There was an error; don't attempt login and focus the first
@@ -118,16 +132,38 @@ public class LoginActivity extends Activity {
         }
     }
 
-    private boolean isPasswordValid(String password) {
-        //TODO: Replace this with your own logic
-        return password.length() > 4;
+    public void onLoginSuccess(String username, String password){
+        // All is well
+        Log.i("", "Login success");
+
+        SharedPreferences settings = getSharedPreferences(PK_CREDENTIALS_PREFS, 0);
+        SharedPreferences.Editor ed = settings.edit();
+        ed.putBoolean(PK_SAVE_CREDENTIALS, mSaveCredentials.isChecked());
+        if(mSaveCredentials.isChecked())
+        {
+            ed.putString(PK_USERNAME, username);
+            ed.putString(PK_PASSWORD, password);
+        }
+        else
+        {
+            ed.putString(PK_USERNAME,"");
+            ed.putString(PK_PASSWORD,"");
+        }
+        ed.apply();
+
+        Toast toast = Toast.makeText(getApplicationContext(), getString(R.string.toast_login_success), Toast.LENGTH_SHORT);
+        toast.show();
+        finish();
+
+        Intent in = new Intent(getApplicationContext(),MainActivity.class);
+        in.putExtra("username",username);
+        in.putExtra("password",password);
+        startActivity(in);
     }
 
-    /**
-     * Shows the progress UI and hides the login form.
-     */
     @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
     public void showProgress(final boolean show) {
+        //TODO Make this not look like shit
         // On Honeycomb MR2 we have the ViewPropertyAnimator APIs, which allow
         // for very easy animations. If available, use these APIs to fade-in
         // the progress spinner.
@@ -199,24 +235,12 @@ public class LoginActivity extends Activity {
             switch(contentNum)
             {
                 case Ok: {
-                    // All is well
-                    Log.i("", "Login success");
-                    Toast toast = Toast.makeText(getApplicationContext(), "Login Success", Toast.LENGTH_LONG);
-                    toast.show();
-                    finish();
-
-                    //TODO Option to save credentials
-                    //TODO If we leave the program, should be able to return to where we were prior
-                    Intent in = new Intent(getApplicationContext(),MainActivity.class);
-                    //Bundle buns = new Bundle();
-                    in.putExtra("username",mUsername);
-                    in.putExtra("password",mPassword);
-                    startActivity(in);
+                    onLoginSuccess(mUsername,mPassword);
                     break;
                 }
                 case EmailUnverified: {
                     // Email unverified
-                    mUsernameView.setError("Your Email is Unverified. Please verify your email first.");
+                    mUsernameView.setError(getString(R.string.error_email_not_verified));
                     mUsernameView.requestFocus();
                     break;
                 }
@@ -227,19 +251,19 @@ public class LoginActivity extends Activity {
                 }
                 case PasswordWrong:{
                     // Password Wrong
-                    mPasswordView.setError(getString(R.string. error_incorrect_password));
+                    mPasswordView.setError(getString(R.string. error_invalid_password));
                     mPasswordView.requestFocus();
                     break;
                 }
                 case NotSubscribed:{
                     // Not Subscribed(need to tie into this somehow
-                    mUsernameView.setError("You are not subscribed. You must be subscribed to use this app.");
+                    mUsernameView.setError(getString(R.string.error_not_subscribed));
                     mUsernameView.requestFocus();
                     break;
                 }
                 default:{
                     // Generic Error Here about how all shit's broke
-                    mUsernameView.setError("There was an error. Please try again later.");
+                    mUsernameView.setError(getString(R.string.error_try_again));
                     mUsernameView.requestFocus();
                 }
             }

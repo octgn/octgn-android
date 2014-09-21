@@ -14,20 +14,19 @@ public class ApiClient {
     public LoginResult Login(String username, String password) {
         try {
             Log.i("", "Starting to do login request.");
-            //HttpRequest resp = HttpRequest.get("https://www.octgn.net/api/user/login", true, "username", username, "password", password)
-            //        .accept("application/text"); //Sets request header
-            //Log.i("", "Request String: " + resp.toString());
-            //Log.i("", "Content Type: " + resp.contentType());
-            //Log.i("", "Content Encoding: " + resp.contentEncoding());
+            HttpRequest resp = HttpRequest.get("https://www.octgn.net/api/user/login", true, "username", username, "password", password)
+                    .accept("application/text"); //Sets request header
+            Log.i("", "Request String: " + resp.toString());
+            Log.i("", "Content Type: " + resp.contentType());
+            Log.i("", "Content Encoding: " + resp.contentEncoding());
 
-            //int code = resp.code();
-            //if (code != HttpStatus.SC_OK) {
-            //    Log.i("", "Not a 200 response, it was a " + code);
-            //    return LoginResult.UnknownError;
-            //}
+            int code = resp.code();
+            if (code != HttpStatus.SC_OK) {
+                Log.i("", "Not a 200 response, it was a " + code);
+                return LoginResult.UnknownError;
+            }
             Log.i("", "200 dawg");
-            //String content = resp.body();
-            String content = "1";
+            String content = resp.body();
             Log.i("", "Content: " + content);
             if (content.matches("\\d+") == false)
                 return LoginResult.UnknownError;
@@ -44,16 +43,15 @@ public class ApiClient {
 
     public IsSubbedResult IsSubscriber(String username, String password) {
         try {
-            //HttpRequest resp = HttpRequest.get("https://www.octgn.net/api/user/issubbed", true, "subusername", username, "subpassword", password)
-            //        .accept("application/text"); //Sets request header
-            //int code = resp.code();
-            //if (code != HttpStatus.SC_OK) {
-            //    Log.i("", "Not a 200 response, it was a " + code);
-            //    return IsSubbedResult.UnknownError;
-            //}
-            //Log.i("", "200 dawg");
-            //String content = resp.body();
-            String content = "1";
+            HttpRequest resp = HttpRequest.get("https://www.octgn.net/api/user/issubbed", true, "subusername", username, "subpassword", password)
+                    .accept("application/text"); //Sets request header
+            int code = resp.code();
+            if (code != HttpStatus.SC_OK) {
+                Log.i("", "Not a 200 response, it was a " + code);
+                return IsSubbedResult.UnknownError;
+            }
+            Log.i("", "200 dawg");
+            String content = resp.body();
             Log.i("", "Content: " + content);
             if (content.matches("\\d+") == false)
                 return IsSubbedResult.UnknownError;
