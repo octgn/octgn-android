@@ -213,17 +213,18 @@ public class LoginActivity extends Activity {
         protected LoginResult doInBackground(Void... params) {
             ApiClient client = new ApiClient();
             LoginResult lr = client.Login(mUsername, mPassword);
-            if(lr != LoginResult.Ok)
-                return lr;
+            return lr;
+            //if(lr != LoginResult.Ok)
+            //    return lr;
 
-            IsSubbedResult sr = client.IsSubscriber(mUsername, mPassword);
-            if(sr == IsSubbedResult.AuthenticationError
-                || sr == IsSubbedResult.UnknownError)
-                return LoginResult.UnknownError;
-            if(sr == IsSubbedResult.NoSubscription
-                    || sr == IsSubbedResult.SubscriptionExpired)
-                return LoginResult.NotSubscribed;
-            return LoginResult.Ok;
+            //IsSubbedResult sr = client.IsSubscriber(mUsername, mPassword);
+            //if(sr == IsSubbedResult.AuthenticationError
+            //    || sr == IsSubbedResult.UnknownError)
+            //    return LoginResult.UnknownError;
+            //if(sr == IsSubbedResult.NoSubscription
+            //        || sr == IsSubbedResult.SubscriptionExpired)
+            //    return LoginResult.NotSubscribed;
+            //return LoginResult.Ok;
         }
 
         @Override
