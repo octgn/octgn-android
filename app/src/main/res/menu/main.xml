@@ -7,7 +7,8 @@
         android:icon="@drawable/ic_menu_refresh"
         style="@android:style/Widget.ActionButton"
         android:actionLayout="@layout/refresh_spinner"
-        android:showAsAction="always" />
+        android:showAsAction="always"
+        />
     <item android:id="@+id/action_settings"
         android:title="@string/action_settings"
         android:orderInCategory="100"

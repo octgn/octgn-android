@@ -254,7 +254,7 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
                 @Override
                 public void onItemClick(AdapterView<?> parent, View view,
                                         int position, long id) {
-                    Toast.makeText(mainActivity, "You Clicked on game " + mGames.get(+position), Toast.LENGTH_SHORT).show();
+                    //Toast.makeText(mainActivity, "You Clicked on game " + mGames.get(+position), Toast.LENGTH_SHORT).show();
                 }
             });
         }
@@ -300,7 +300,7 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
             protected List<GameDetails> doInBackground(Void... params) {
                 Log.i("", "RefreshGamesTask.execute");
                 ApiClient client = new ApiClient();
-                List<GameDetails> ret = client.GetGames(mUsername, mPassword);
+                List<GameDetails> ret = client.GetGames();
 
                 Collections.sort(ret, new Comparator<GameDetails>() {
                     public int compare(GameDetails emp1, GameDetails emp2) {
