@@ -1,1 +1,1 @@
-include ':app', ':Octgn.Api'
+include ':app', ':Octgn.Api', ':Octgn.Library'
