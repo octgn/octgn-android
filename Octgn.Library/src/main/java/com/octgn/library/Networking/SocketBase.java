@@ -28,6 +28,7 @@ public abstract class SocketBase implements ISocket {
     //    this.Log = log;
     //}
 
+    @Override
     public void Setup(SocketAddress ep,ISocketMessageProcessor processor)
     {
         synchronized (this)

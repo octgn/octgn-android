@@ -1,6 +1,7 @@
 package com.octgn.library.Networking;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 
 /**
  * Created by Kelly on 9/24/2014.
@@ -12,7 +13,7 @@ public interface ISocket
     int getPort();
     ISocketMessageProcessor getMessageProcessor();
 
-    void Setup(String ipAddress, int port, ISocketMessageProcessor processor);
+    void Setup(SocketAddress addr, ISocketMessageProcessor processor);
     void Connect() throws IOException;
     void Disconnect();
     void Send(byte[] data);
