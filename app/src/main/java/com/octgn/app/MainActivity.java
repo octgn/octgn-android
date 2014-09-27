@@ -231,8 +231,11 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
 
                 //refreshButton.setActionView(iv);
             } else {
-                refreshButton.getActionView().setEnabled(true);
-                refreshButton.getActionView().clearAnimation();
+                if(refreshButton.getActionView() != null) {
+                    //TODO need to figure out why this would be null. Probably cause the view changed?
+                    refreshButton.getActionView().setEnabled(true);
+                    refreshButton.getActionView().clearAnimation();
+                }
                 //refreshButton.setActionView(null);
             }
         }
