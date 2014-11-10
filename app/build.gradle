@@ -15,8 +15,8 @@ android {
         applicationId "com.octgn.app"
         minSdkVersion 14
         targetSdkVersion 20
-        versionCode 2
-        versionName '1.1'
+        versionCode 3
+        versionName '1.2'
     }
     buildTypes {
         release {
@@ -36,4 +36,5 @@ dependencies {
     compile 'com.android.support:support-v4:20.0.0'
     compile 'com.nostra13.universalimageloader:universal-image-loader:1.9.3'
     compile project(':Octgn.Api')
+    compile project(':Octgn.Library')
 }

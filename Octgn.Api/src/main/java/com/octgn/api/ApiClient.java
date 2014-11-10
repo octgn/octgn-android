@@ -46,6 +46,70 @@ public class ApiClient {
         return LoginResult.UnknownError;
     }
 
+    public CreateSessionResult CreateSession(String username, String password) {
+        try {
+            Log.i("", "Starting to do login request.");
+            HttpRequest resp = HttpRequest.get("https://www.octgn.net/api/user/CreateSession", true, "createsessionusername", username, "createsessionpassword", password)
+                    .accept("application/text"); //Sets request header
+            Log.i("", "Request String: " + resp.toString());
+            Log.i("", "Content Type: " + resp.contentType());
+            Log.i("", "Content Encoding: " + resp.contentEncoding());
+
+            int code = resp.code();
+            if (code != HttpStatus.SC_OK) {
+                Log.i("", "Not a 200 response, it was a " + code);
+                CreateSessionResult res = new CreateSessionResult();
+                res.Result = LoginResult.UnknownError;
+                return res;
+            }
+            Log.i("", "200 dawg");
+            String content = resp.body();
+            Log.i("", "Content: " + content);
+            JSONObject jobj = new JSONObject(content);
+            CreateSessionResult ret = new CreateSessionResult();
+            ret.SessionKey = jobj.getString("SessionKey");
+            ret.Result = LoginResult.fromInt(jobj.getInt("Result"));
+            return ret;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Log.i("", "Finished and it was a FAIL");
+        CreateSessionResult res = new CreateSessionResult();
+        res.Result = LoginResult.UnknownError;
+        return res;
+    }
+
+    public LoginResult RegisterGsm(String username, String password, String deviceType, String deviceName, String pushToken) {
+        try {
+            Log.i("", "Starting to do login request.");
+            HttpRequest resp = HttpRequest.get("https://www.octgn.net/api/user/GsmRegistration", true, "gsmregistrationusername", username, "gsmregistrationpassword", password,
+                    "deviceType",deviceType,"deviceName",deviceName,"pushToken", pushToken)
+                    .accept("application/text"); //Sets request header
+            Log.i("", "Request String: " + resp.toString());
+            Log.i("", "Content Type: " + resp.contentType());
+            Log.i("", "Content Encoding: " + resp.contentEncoding());
+
+            int code = resp.code();
+            if (code != HttpStatus.SC_OK) {
+                Log.i("", "Not a 200 response, it was a " + code);
+                return LoginResult.UnknownError;
+            }
+            Log.i("", "200 dawg");
+            String content = resp.body();
+            Log.i("", "Content: " + content);
+            if (content.matches("\\d+") == false)
+                return LoginResult.UnknownError;
+
+            int contentNum = Integer.parseInt(content);
+
+            return LoginResult.fromInt(contentNum);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Log.i("", "Finished and it was a FAIL");
+        return LoginResult.UnknownError;
+    }
+
     public IsSubbedResult IsSubscriber(String username, String password) {
         try {
             HttpRequest resp = HttpRequest.get("https://www.octgn.net/api/user/issubbed", true, "subusername", username, "subpassword", password)

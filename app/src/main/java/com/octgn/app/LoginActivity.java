@@ -23,7 +23,10 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.octgn.api.ApiClient;
+import com.octgn.api.CreateSessionResult;
 import com.octgn.api.IsSubbedResult;
 import com.octgn.api.LoginResult;
 
@@ -40,7 +43,6 @@ public class LoginActivity extends Activity {
     // UI references.
     private AutoCompleteTextView mUsernameView;
     private EditText mPasswordView;
-    private CheckBox mSaveCredentials;
     private View mProgressView;
     private View mLoginFormView;
 
@@ -49,18 +51,20 @@ public class LoginActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
+        if (!checkPlayServices(this))
+            return;
+
         //TODO replace the app icon with the proper sizings
         //TODO reaplce the login screen image with the proper sizings
         // Set up the login form.
         mUsernameView = (AutoCompleteTextView) findViewById(R.id.username);
-        mSaveCredentials = (CheckBox)findViewById(R.id.login_save_credentials);
 
         mPasswordView = (EditText) findViewById(R.id.password);
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
                 if (id == R.id.login || id == EditorInfo.IME_NULL) {
-                    attemptLogin();
+                    attemptLogin(true);
                     return true;
                 }
                 return false;
@@ -71,7 +75,7 @@ public class LoginActivity extends Activity {
         mUsernameSignInButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-                attemptLogin();
+                attemptLogin(true);
             }
         });
 
@@ -80,16 +84,23 @@ public class LoginActivity extends Activity {
 
         // Restore saved shitz
         SharedPreferences settings = getSharedPreferences(PK_CREDENTIALS_PREFS, 0);
-        boolean saveCreds = settings.getBoolean(PK_SAVE_CREDENTIALS, false);
         String username = settings.getString(PK_USERNAME, "");
         String password = settings.getString(PK_PASSWORD, "");
 
         mUsernameView.setText(username);
         mPasswordView.setText(password);
-        mSaveCredentials.setChecked(saveCreds);
+
+        if(username.isEmpty() == false && password.isEmpty() == false)
+            attemptLogin(false);
     }
 
-    public void attemptLogin() {
+    @Override
+    protected void onResume(){
+        super.onResume();
+        checkPlayServices(this);
+    }
+
+    public void attemptLogin(Boolean create) {
         if (mAuthTask != null) {
             return;
         }
@@ -127,7 +138,7 @@ public class LoginActivity extends Activity {
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            mAuthTask = new UserLoginTask(username, password);
+            mAuthTask = new UserLoginTask(create, username, password);
             mAuthTask.execute((Void) null);
         }
     }
@@ -138,17 +149,8 @@ public class LoginActivity extends Activity {
 
         SharedPreferences settings = getSharedPreferences(PK_CREDENTIALS_PREFS, 0);
         SharedPreferences.Editor ed = settings.edit();
-        ed.putBoolean(PK_SAVE_CREDENTIALS, mSaveCredentials.isChecked());
-        if(mSaveCredentials.isChecked())
-        {
-            ed.putString(PK_USERNAME, username);
-            ed.putString(PK_PASSWORD, password);
-        }
-        else
-        {
-            ed.putString(PK_USERNAME,"");
-            ed.putString(PK_PASSWORD,"");
-        }
+        ed.putString(PK_USERNAME, username);
+        ed.putString(PK_PASSWORD, password);
         ed.apply();
 
         Toast toast = Toast.makeText(getApplicationContext(), getString(R.string.toast_login_success), Toast.LENGTH_SHORT);
@@ -195,48 +197,63 @@ public class LoginActivity extends Activity {
         }
     }
 
+    public static boolean checkPlayServices(Activity act) {
+        int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(act);
+        if (resultCode != ConnectionResult.SUCCESS) {
+            if (GooglePlayServicesUtil.isUserRecoverableError(resultCode)) {
+                GooglePlayServicesUtil.getErrorDialog(resultCode, act,
+                        9000).show();
+            } else {
+                Log.i("OCTGN", "This device is not supported.");
+                act.finish();
+            }
+            return false;
+        }
+        return true;
+    }
+
     /**
      * Represents an asynchronous login/registration task used to authenticate
      * the user.
      */
-    public class UserLoginTask extends AsyncTask<Void, Void, LoginResult> {
+    public class UserLoginTask extends AsyncTask<Void, Void, CreateSessionResult> {
 
         private final String mUsername;
         private final String mPassword;
+        private final Boolean mCreate;
 
-        UserLoginTask(String username, String password) {
+        UserLoginTask(Boolean create,String username, String password) {
             mUsername = username;
             mPassword = password;
+            mCreate = create;
         }
 
         @Override
-        protected LoginResult doInBackground(Void... params) {
+        protected CreateSessionResult doInBackground(Void... params) {
             ApiClient client = new ApiClient();
-            LoginResult lr = client.Login(mUsername, mPassword);
-            return lr;
-            //if(lr != LoginResult.Ok)
-            //    return lr;
-
-            //IsSubbedResult sr = client.IsSubscriber(mUsername, mPassword);
-            //if(sr == IsSubbedResult.AuthenticationError
-            //    || sr == IsSubbedResult.UnknownError)
-            //    return LoginResult.UnknownError;
-            //if(sr == IsSubbedResult.NoSubscription
-            //        || sr == IsSubbedResult.SubscriptionExpired)
-            //    return LoginResult.NotSubscribed;
-            //return LoginResult.Ok;
+            if(mCreate) {
+                CreateSessionResult lr = client.CreateSession(mUsername, mPassword);
+                return lr;
+            }
+            else{
+                LoginResult lr = client.Login(mUsername,mPassword);
+                CreateSessionResult ret = new CreateSessionResult();
+                ret.SessionKey = mPassword;
+                ret.Result = lr;
+                return ret;
+            }
         }
 
         @Override
-        protected void onPostExecute(final LoginResult contentNum) {
+        protected void onPostExecute(final CreateSessionResult contentNum) {
             mAuthTask = null;
             showProgress(false);
             Boolean success = false;
             String eMessage = "";
-            switch(contentNum)
+            switch(contentNum.Result)
             {
                 case Ok: {
-                    onLoginSuccess(mUsername,mPassword);
+                    onLoginSuccess(mUsername,contentNum.SessionKey);
                     break;
                 }
                 case EmailUnverified: {

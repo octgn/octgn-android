@@ -1,7 +1,5 @@
 package com.octgn.library.Networking;
 
-import android.renderscript.RSInvalidStateException;
-
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.SocketException;
