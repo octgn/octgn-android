@@ -78,7 +78,7 @@ public class GcmIntentService extends IntentService {
                                     .bigText(message))
                             .setContentText(message);
 
-            mBuilder.setContentIntent(contentIntent);
+            //mBuilder.setContentIntent(contentIntent);
             mNotificationManager.notify(NOTIFICATION_ID, mBuilder.build());
         } catch (JSONException e) {
             Log.i(TAG,msg);
